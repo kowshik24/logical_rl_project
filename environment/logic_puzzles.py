@@ -67,3 +67,24 @@ class PropositionalLogicGenerator:
             
         except:
             return -1.0  # Error in parsing
+    
+    def generate_complex_puzzle(self, level: int) -> Tuple[str, str, bool]:
+        """Generate complex puzzles for higher levels"""
+        num_vars = min(3 + level - 2, 6)  # Increase variables with level
+        vars_used = random.sample(self.variables, num_vars)
+        values = {var: random.choice([True, False]) for var in vars_used}
+        
+        # Create a more complex logical expression
+        var1, var2, var3 = vars_used[:3]
+        val1, val2, val3 = values[var1], values[var2], values[var3]
+        
+        puzzle = f"Given: {var1} = {val1}, {var2} = {val2}, {var3} = {val3}. "
+        puzzle += f"What is ({var1} IMPLIES {var2}) AND (NOT {var3} OR {var1})?"
+        
+        # Calculate answer: (A -> B) AND (~C OR A)
+        # A -> B is equivalent to ~A OR B
+        implies_result = (not val1) or val2
+        or_result = (not val3) or val1
+        answer = implies_result and or_result
+        
+        return puzzle, str(answer).upper(), answer

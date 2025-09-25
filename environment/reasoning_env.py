@@ -26,10 +26,12 @@ class LogicalReasoningEnv(gym.Env):
         self.current_puzzle = None
         self.current_step = 0
         self.max_steps = 10  # Maximum reasoning steps
+        self.episode_count = 0  # Track episodes for curriculum learning
         
     def reset(self):
         """Reset the environment with a new puzzle"""
         self.current_step = 0
+        self.episode_count += 1  # Increment episode count for curriculum learning
         level = min(1 + (self.episode_count // 100), 5)  # Curriculum learning
         self.current_puzzle, self.expected_answer, _ = self.generator.generate_puzzle_by_level(level)
         
