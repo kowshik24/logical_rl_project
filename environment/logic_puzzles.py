@@ -42,15 +42,18 @@ class PropositionalLogicGenerator:
         answer = (val1 and not val2) or val3
         return puzzle, str(answer), values, expression
     
-    def generate_puzzle_by_level(self, level: int) -> Tuple[str, str, Dict[str, bool], str]:
-        """Generate puzzle based on curriculum level"""
+    def generate_puzzle(self, level: int = 1) -> Tuple[str, str, Dict[str, bool], str]:
+        """Generate a proper logic puzzle"""
         if level == 1:
             return self.generate_simple_puzzle()
         elif level == 2:
             return self.generate_medium_puzzle()
         else:
-            # More complex puzzles for higher levels
             return self.generate_complex_puzzle(level)
+    
+    def generate_puzzle_by_level(self, level: int) -> Tuple[str, str, Dict[str, bool], str]:
+        """Generate puzzle based on curriculum level"""
+        return self.generate_puzzle(level)
     
     def verify_answer(self, puzzle_text: str, model_answer: str, expected_answer: str) -> float:
         """Verify if the model's answer is correct. Returns reward."""
