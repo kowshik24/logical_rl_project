@@ -1,5 +1,6 @@
 import os
 import yaml
+import torch
 from training.ppo_trainer import PPOTrainer
 from environment.reasoning_env import LogicalReasoningEnv
 
@@ -11,7 +12,7 @@ def main():
     # Initialize trainer and environment
     trainer = PPOTrainer(
         model_name=config['model_name'],
-        learning_rate=config['learning_rate']
+        learning_rate=float(config['learning_rate'])
     )
     
     env = LogicalReasoningEnv(trainer.model, trainer.tokenizer)
