@@ -98,6 +98,12 @@ class SimplePPOTrainer:
         hidden_states = outputs.hidden_states[-1][:, -1, :]
         values = self.value_head(hidden_states).squeeze()
         
+        # Ensure values and rewards have same shape
+        if values.dim() == 0:
+            values = values.unsqueeze(0)
+        if rewards.dim() == 0:
+            rewards = rewards.unsqueeze(0)
+        
         # Calculate advantages
         advantages = rewards - values.detach()
         
@@ -107,7 +113,7 @@ class SimplePPOTrainer:
         surr2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantages
         policy_loss = -torch.min(surr1, surr2).mean()
         
-        # Value loss
+        # Value loss - ensure same shapes
         value_loss = F.mse_loss(values, rewards)
         
         # Entropy bonus for exploration

@@ -82,20 +82,37 @@ def debug_training():
                   f"Avg Reward: {avg_reward:7.3f} | "
                   f"Positive: {positive_rewards}/{len(episode_rewards)} | "
                   f"Loss: {loss:7.3f}")
+                  
+            # Show recent performance pattern
+            if episode > 0 and 'info' in locals():
+                recent_correct = successful_episodes - (successful_episodes - len([r for r in episode_rewards if r > 0]))
+                print(f"    Recent puzzle: {env.current_puzzle}")
+                print(f"    Model choice: '{info.get('generated_text', '')}' -> Expected: '{env.expected_answer}' -> {'✓' if total_reward > 0 else '✗'}")
                 
-        # Early success detection
-        if episode > 50 and success_rate > 80:
+        # Early success detection - lowered threshold to see if it can reach 75%
+        if episode > 100 and success_rate > 75:
             print(f"\nSUCCESS! Model achieving {success_rate:.1f}% success rate at episode {episode}")
             
             # Test the model on a few examples
             print("\nTesting model:")
-            for test_episode in range(3):
+            for test_episode in range(5):
                 test_state = env.reset()
                 action, _, _ = trainer.get_action_and_value(test_state)
                 _, reward, _, info = env.step(action)
                 print(f"  Test {test_episode+1}: {env.current_puzzle}")
                 print(f"    Generated: '{info['generated_text']}' -> Expected: '{env.expected_answer}' -> {'✓' if reward > 0 else '✗'}")
             break
+            
+        # Show intermediate progress
+        if episode == 199:
+            print(f"\nTraining completed. Final success rate: {success_rate:.1f}%")
+            print("\nFinal testing:")
+            for test_episode in range(5):
+                test_state = env.reset()
+                action, _, _ = trainer.get_action_and_value(test_state)
+                _, reward, _, info = env.step(action)
+                print(f"  Test {test_episode+1}: {env.current_puzzle}")
+                print(f"    Generated: '{info['generated_text']}' -> Expected: '{env.expected_answer}' -> {'✓' if reward > 0 else '✗'}")
 
 if __name__ == "__main__":
     debug_training()
