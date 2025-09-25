@@ -1,6 +1,7 @@
 import os
 import yaml
 import torch
+import numpy as np
 from training.ppo_trainer import PPOTrainer
 from environment.reasoning_env import LogicalReasoningEnv
 
@@ -28,23 +29,40 @@ def main():
         for step in range(config['max_steps_per_episode']):
             # Get action from policy
             with torch.no_grad():
-                state_tensor = torch.tensor(state).unsqueeze(0).to(trainer.device)
+                # Ensure state is properly converted to tensor
+                if isinstance(state, np.ndarray):
+                    state_tensor = torch.from_numpy(state).long().unsqueeze(0).to(trainer.device)
+                else:
+                    state_tensor = torch.tensor(state, dtype=torch.long).unsqueeze(0).to(trainer.device)
                 outputs = trainer.model(state_tensor)
                 logits = outputs.logits[:, -1, :]
+                
+                # Add numerical stability - clip logits to prevent overflow
+                logits = torch.clamp(logits, min=-20, max=20)
+                
+                # Apply temperature scaling for better exploration
+                temperature = 1.0
+                logits = logits / temperature
+                
                 probs = torch.softmax(logits, dim=-1)
+                
+                # Ensure probabilities are valid
+                probs = torch.clamp(probs, min=1e-8, max=1.0)
+                probs = probs / probs.sum(dim=-1, keepdim=True)  # Renormalize
+                
                 action = torch.multinomial(probs, 1).item()
-                log_prob = torch.log(probs[0, action])
-                value = torch.tensor(0.5)  # Simplified value estimate
+                log_prob = torch.log(probs[0, action] + 1e-8)  # Add small epsilon
+                value = torch.tensor(0.5).to(trainer.device)  # Simplified value estimate
                 
             # Take action in environment
             next_state, reward, done, info = env.step(action)
             
             # Store experience
-            states.append(state_tensor.squeeze())
-            actions.append(torch.tensor(action))
-            log_probs.append(log_prob)
-            rewards.append(reward)
-            values.append(value)
+            states.append(state_tensor.squeeze().cpu())
+            actions.append(torch.tensor(action, dtype=torch.long))
+            log_probs.append(log_prob.cpu())
+            rewards.append(float(reward))
+            values.append(value.cpu())
             
             state = next_state
             episode_rewards.append(reward)

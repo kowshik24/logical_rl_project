@@ -36,8 +36,9 @@ class LogicalReasoningEnv(gym.Env):
         self.current_puzzle, self.expected_answer, _ = self.generator.generate_puzzle_by_level(level)
         
         # Encode the puzzle as input to the model
-        encoded = self.tokenizer.encode(self.current_puzzle, return_tensors='np')
-        return encoded[0]  # Return numpy array
+        encoded = self.tokenizer.encode(self.current_puzzle, return_tensors='np', 
+                                       max_length=self.max_length, truncation=True, padding='max_length')
+        return encoded[0].astype(np.int32)  # Return numpy array with consistent dtype
         
     def step(self, action):
         """Execute one step in the environment"""
@@ -60,5 +61,6 @@ class LogicalReasoningEnv(gym.Env):
     
     def _get_observation(self):
         """Get current observation"""
-        encoded = self.tokenizer.encode(self.current_puzzle, return_tensors='np')
-        return encoded[0]
+        encoded = self.tokenizer.encode(self.current_puzzle, return_tensors='np',
+                                       max_length=self.max_length, truncation=True, padding='max_length')
+        return encoded[0].astype(np.int32)

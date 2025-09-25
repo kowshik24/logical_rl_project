@@ -22,9 +22,18 @@ class PPOTrainer:
         
     def compute_advantages(self, rewards, values, gamma=0.99, lam=0.95):
         """Compute advantages using GAE"""
+        if len(rewards) == 0:
+            return torch.tensor([])
+        
         advantages = []
         gae = 0
         next_value = 0
+        
+        # Convert to tensors if not already
+        if not isinstance(rewards, torch.Tensor):
+            rewards = torch.tensor(rewards, dtype=torch.float32)
+        if not isinstance(values, torch.Tensor):
+            values = torch.tensor(values, dtype=torch.float32)
         
         for t in reversed(range(len(rewards))):
             delta = rewards[t] + gamma * next_value - values[t]
@@ -32,19 +41,27 @@ class PPOTrainer:
             advantages.insert(0, gae)
             next_value = values[t]
             
-        return torch.tensor(advantages)
+        return torch.tensor(advantages, dtype=torch.float32)
     
     def ppo_update(self, states, actions, log_probs_old, rewards, values_old):
         """Perform PPO update step"""
+        if len(states) == 0:
+            return 0.0
+            
         states = torch.stack(states).to(self.device)
         actions = torch.stack(actions).to(self.device)
         log_probs_old = torch.stack(log_probs_old).to(self.device)
-        rewards = torch.tensor(rewards).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
         values_old = torch.stack(values_old).to(self.device)
         
         # Compute advantages
         advantages = self.compute_advantages(rewards, values_old).to(self.device)
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        
+        # Handle case where we have only one sample (std would be 0)
+        if len(advantages) > 1:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        else:
+            advantages = advantages - advantages.mean()
         
         # Get new action probabilities and values
         outputs = self.model(input_ids=states, output_hidden_states=True)
@@ -58,8 +75,19 @@ class PPOTrainer:
         surr2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantages
         policy_loss = -torch.min(surr1, surr2).mean()
         
-        # Value loss
-        value_loss = nn.MSELoss()(values_old.squeeze(), rewards)
+        # Value loss - ensure tensors have matching shapes
+        values_pred = values_old.squeeze()
+        if values_pred.dim() == 0:
+            values_pred = values_pred.unsqueeze(0)
+        if rewards.dim() == 0:
+            rewards = rewards.unsqueeze(0)
+        
+        # Ensure both tensors have the same shape
+        min_len = min(len(values_pred), len(rewards))
+        values_pred = values_pred[:min_len]
+        rewards_clipped = rewards[:min_len]
+        
+        value_loss = nn.MSELoss()(values_pred, rewards_clipped)
         
         # Entropy bonus
         entropy = -(torch.softmax(logits, dim=-1) * torch.log_softmax(logits, dim=-1)).sum(-1).mean()
